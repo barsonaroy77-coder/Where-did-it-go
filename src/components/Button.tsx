@@ -149,7 +149,6 @@ export const Button: React.FC<ButtonProps> = ({
         pointerEvents="none"
         style={[
           styles.shadow,
-          fullWidth && styles.fullWidth,
           disabled && styles.disabledShadow,
         ]}
       />
@@ -211,8 +210,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: shadowOffsets.default.height,
     left: shadowOffsets.default.width,
-    width: '100%',
-    height: '100%',
+    right: -shadowOffsets.default.width,
+    bottom: -shadowOffsets.default.height,
     backgroundColor: colors.border,
     borderRadius: radii.md,
   },
