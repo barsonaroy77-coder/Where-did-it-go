@@ -8,6 +8,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { Stack, ThemeProvider } from 'expo-router';
 import { navigationTheme, colors } from '@/theme';
+import { ToastProvider } from '@/components';
 
 // Keep the splash screen visible until fonts load
 SplashScreen.preventAutoHideAsync();
@@ -31,17 +32,19 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.text,
-          contentStyle: {
-            backgroundColor: colors.background,
-          },
-        }}
-      />
+      <ToastProvider>
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerTintColor: colors.text,
+            contentStyle: {
+              backgroundColor: colors.background,
+            },
+          }}
+        />
+      </ToastProvider>
     </ThemeProvider>
   );
 }
