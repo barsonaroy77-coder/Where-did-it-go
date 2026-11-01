@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo-google-fonts/space-grotesk": "^0.4.1",
     "@expo/ui": "~58.0.26",
     "expo": "~58.0.22",
     "expo-constants": "~58.0.14",
