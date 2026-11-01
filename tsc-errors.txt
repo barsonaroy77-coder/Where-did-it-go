@@ -1,0 +1,39 @@
+example/src/app/_layout.tsx(5,39): error TS2307: Cannot find module '@/components/animated-icon' or its corresponding type declarations.
+example/src/app/_layout.tsx(6,21): error TS2307: Cannot find module '@/components/app-tabs' or its corresponding type declarations.
+example/src/app/explore.tsx(6,30): error TS2307: Cannot find module '@/components/external-link' or its corresponding type declarations.
+example/src/app/explore.tsx(7,28): error TS2307: Cannot find module '@/components/themed-text' or its corresponding type declarations.
+example/src/app/explore.tsx(8,28): error TS2307: Cannot find module '@/components/themed-view' or its corresponding type declarations.
+example/src/app/explore.tsx(9,29): error TS2307: Cannot find module '@/components/ui/collapsible' or its corresponding type declarations.
+example/src/app/explore.tsx(10,26): error TS2307: Cannot find module '@/components/web-badge' or its corresponding type declarations.
+example/src/app/explore.tsx(11,58): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/app/explore.tsx(12,26): error TS2307: Cannot find module '@/hooks/use-theme' or its corresponding type declarations.
+example/src/app/index.tsx(5,30): error TS2307: Cannot find module '@/components/animated-icon' or its corresponding type declarations.
+example/src/app/index.tsx(6,25): error TS2307: Cannot find module '@/components/hint-row' or its corresponding type declarations.
+example/src/app/index.tsx(7,28): error TS2307: Cannot find module '@/components/themed-text' or its corresponding type declarations.
+example/src/app/index.tsx(8,28): error TS2307: Cannot find module '@/components/themed-view' or its corresponding type declarations.
+example/src/app/index.tsx(9,26): error TS2307: Cannot find module '@/components/web-badge' or its corresponding type declarations.
+example/src/app/index.tsx(10,58): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/components/app-tabs.tsx(4,24): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/components/app-tabs.web.tsx(12,50): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/components/app-tabs.web.tsx(27,38): error TS2322: Type '"/explore"' is not assignable to type 'RelativePathString | ExternalPathString | "/" | `/?${string}` | `/#${string}` | "/_sitemap" | `/_sitemap?${string}` | `/_sitemap#${string}` | { pathname: RelativePathString | ExternalPathString | "/" | "/_sitemap"; params?: UnknownInputParams | undefined; } | undefined'.
+example/src/components/app-tabs.web.tsx(38,6): error TS2322: Type '{ children: Element; style: ({ pressed }: PressableStateCallbackType) => false | { opacity: number; }; pointerEvents?: "auto" | "none" | "box-none" | "box-only" | undefined; ... 130 more ...; href?: string | undefined; }' is not assignable to type '{ ref?: Ref<ReactNativeElement> | undefined; }'.
+  Types of property 'ref' are incompatible.
+    Type 'Ref<(props: Omit<ViewProps, "ref"> & { ref?: Ref<ReactNativeElement> | undefined; }) => ReactNode> | undefined' is not assignable to type 'Ref<ReactNativeElement> | undefined'.
+      Type '(instance: ((props: Omit<ViewProps, "ref"> & { ref?: Ref<ReactNativeElement> | undefined; }) => ReactNode) | null) => void | (() => VoidOrUndefinedOnly)' is not assignable to type 'Ref<ReactNativeElement> | undefined'.
+        Type '(instance: ((props: Omit<ViewProps, "ref"> & { ref?: Ref<ReactNativeElement> | undefined; }) => ReactNode) | null) => void | (() => VoidOrUndefinedOnly)' is not assignable to type '(instance: ReactNativeElement | null) => void | (() => VoidOrUndefinedOnly)'.
+          Types of parameters 'instance' and 'instance' are incompatible.
+            Type 'ReactNativeElement | null' is not assignable to type '((props: Omit<ViewProps, "ref"> & { ref?: Ref<ReactNativeElement> | undefined; }) => ReactNode) | null'.
+              Type 'ReactNativeElement' is not assignable to type '(props: Omit<ViewProps, "ref"> & { ref?: Ref<ReactNativeElement> | undefined; }) => ReactNode'.
+                Type 'ReactNativeElement' provides no match for the signature '(props: Omit<ViewProps, "ref"> & { ref?: Ref<ReactNativeElement> | undefined; }): ReactNode'.
+example/src/components/hint-row.tsx(7,25): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/components/themed-text.tsx(3,35): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/components/themed-text.tsx(4,26): error TS2307: Cannot find module '@/hooks/use-theme' or its corresponding type declarations.
+example/src/components/themed-view.tsx(3,28): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/components/themed-view.tsx(4,26): error TS2307: Cannot find module '@/hooks/use-theme' or its corresponding type declarations.
+example/src/components/ui/collapsible.tsx(6,28): error TS2307: Cannot find module '@/components/themed-text' or its corresponding type declarations.
+example/src/components/ui/collapsible.tsx(7,28): error TS2307: Cannot find module '@/components/themed-view' or its corresponding type declarations.
+example/src/components/ui/collapsible.tsx(8,25): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/components/ui/collapsible.tsx(9,26): error TS2307: Cannot find module '@/hooks/use-theme' or its corresponding type declarations.
+example/src/components/web-badge.tsx(8,25): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/hooks/use-theme.ts(6,24): error TS2307: Cannot find module '@/constants/theme' or its corresponding type declarations.
+example/src/hooks/use-theme.ts(7,32): error TS2307: Cannot find module '@/hooks/use-color-scheme' or its corresponding type declarations.
