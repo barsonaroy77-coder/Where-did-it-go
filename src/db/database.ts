@@ -1,4 +1,6 @@
 import { openDatabaseAsync, SQLiteDatabase } from 'expo-sqlite';
+import { DbLike } from './types';
+import { runMigrations } from './migrate';
 
 let currentDb: SQLiteDatabase | null = null;
 let currentUserId: string | null = null;
@@ -76,9 +78,91 @@ export function getCurrentDatabase(): SQLiteDatabase | null {
 }
 
 /**
+ * Asserts that the database belongs to the given user ID.
+ *
+ * Requirements (Phase 4 Part 5):
+ * - In app_meta store owner_user_id the first time a database is created.
+ * - On every open, verify it equals the signed-in user id; on mismatch close
+ *   the database, do not use it, and surface a clear error (never read, write,
+ *   or delete its data).
+ *
+ * Comment per PRD/Spec: An outbox is only ever pushed by the owner's own session, never another user's.
+ */
+export async function assertDatabaseOwner(db: DbLike, userId: string): Promise<void> {
+  if (!userId || typeof userId !== 'string' || !userId.trim()) {
+    throw new Error('A valid userId is required to assert database ownership.');
+  }
+
+  const normalizedUserId = userId.trim();
+
+  // Ensure app_meta table exists
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT
+    );
+  `);
+
+  const metaRow = await db.getFirstAsync<{ value: string | null }>(
+    "SELECT value FROM app_meta WHERE key = 'owner_user_id';"
+  );
+
+  if (!metaRow || metaRow.value === null || metaRow.value === undefined) {
+    // First time database is created: store owner_user_id
+    await db.runAsync(
+      "INSERT INTO app_meta (key, value) VALUES ('owner_user_id', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value;",
+      [normalizedUserId]
+    );
+    return;
+  }
+
+  if (metaRow.value !== normalizedUserId) {
+    // Owner mismatch: close database if closable, do not use it, surface clear error
+    if ('closeAsync' in db && typeof (db as { closeAsync?: () => Promise<void> }).closeAsync === 'function') {
+      try {
+        await (db as { closeAsync: () => Promise<void> }).closeAsync();
+      } catch {
+        // Ignore close error on mismatch
+      }
+    }
+    throw new Error(
+      `Database owner mismatch: database is owned by user '${metaRow.value}', but accessed by user '${normalizedUserId}'. Access rejected.`
+    );
+  }
+}
+
+/**
+ * An outbox is only ever pushed by the owner's own session, never another user's.
+ *
+ * Verifies whether the provided session user ID matches the stored database owner.
+ * Returns false when owners differ, or if the database has no owner or an error occurs.
+ *
+ * @param db The SQLite database instance.
+ * @param sessionUserId The user ID from the active authentication session.
+ */
+export async function canSync(db: DbLike, sessionUserId: string): Promise<boolean> {
+  if (!sessionUserId || typeof sessionUserId !== 'string' || !sessionUserId.trim()) {
+    return false;
+  }
+
+  try {
+    const row = await db.getFirstAsync<{ value: string | null }>(
+      "SELECT value FROM app_meta WHERE key = 'owner_user_id';"
+    );
+    if (!row || !row.value) {
+      return false;
+    }
+    return row.value === sessionUserId.trim();
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Opens or retrieves a cached database connection for the specified user account.
  * Automatically closes any previously open connection for another user.
  * Enables WAL mode and foreign keys as documented in official expo-sqlite docs.
+ * Runs migrations and verifies that the database owner matches the signed-in user id.
  *
  * @param userId The unique user identifier.
  * @returns A promise resolving to the SQLiteDatabase instance.
@@ -109,8 +193,9 @@ export async function openDatabaseForUser(userId: string): Promise<SQLiteDatabas
   const dbName = getDatabaseNameForUser(normalizedUserId);
 
   activeOpenPromise = (async () => {
+    let db: SQLiteDatabase | null = null;
     try {
-      const db = await openDatabaseAsync(dbName);
+      db = await openDatabaseAsync(dbName);
 
       // Configure WAL journal mode and enable foreign keys
       await db.execAsync(`
@@ -118,9 +203,22 @@ export async function openDatabaseForUser(userId: string): Promise<SQLiteDatabas
         PRAGMA foreign_keys = ON;
       `);
 
+      // Run pending migrations so app_meta and tables exist
+      await runMigrations(db);
+
+      // Verify or store owner_user_id; throws and closes on mismatch
+      await assertDatabaseOwner(db, normalizedUserId);
+
       currentDb = db;
       return db;
     } catch (err) {
+      if (db) {
+        try {
+          await db.closeAsync();
+        } catch {
+          // Ignore errors during emergency close
+        }
+      }
       currentDb = null;
       currentUserId = null;
       throw err;
@@ -150,4 +248,3 @@ export async function logDatabaseDevStats(db: SQLiteDatabase, version: number): 
     // Silently ignore in development logging
   }
 }
-

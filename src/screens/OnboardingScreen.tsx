@@ -29,7 +29,7 @@ import { createProfile } from '@/lib/profile';
 export const OnboardingScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
-  const { setProfile } = useAuth();
+  const { setProfile, syncPaused } = useAuth();
 
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -40,6 +40,14 @@ export const OnboardingScreen: React.FC = () => {
     }
     return null;
   });
+
+  React.useEffect(() => {
+    if (syncPaused === 'offline' && !offlineError) {
+      setOfflineError(
+        'First setup requires an active internet connection. Please connect to the internet to complete setup.'
+      );
+    }
+  }, [syncPaused, offlineError]);
 
   const selectedCurrency = selectedCode ? getCurrency(selectedCode) : null;
 

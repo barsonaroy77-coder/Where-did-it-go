@@ -1,3 +1,7 @@
+jest.mock('expo-crypto', () => ({
+  randomUUID: jest.fn(() => require('crypto').randomUUID()),
+}));
+
 import { SqlJsAdapter } from '../testAdapter';
 import {
   createCategory,
@@ -47,6 +51,7 @@ import {
 import { getProfile, upsertProfileFromServer } from '../repositories/profile';
 import { getPendingCount, getOutboxEntries } from '../repositories/outbox';
 import { countFinancialRecords } from '../repositories/financialRecords';
+import { assertDatabaseOwner, canSync } from '../database';
 import { OutboxRow, TransactionRow } from '../types';
 
 describe('Local Repositories with Atomic Entity + Outbox Writes', () => {
@@ -910,5 +915,130 @@ describe('Local Repositories with Atomic Entity + Outbox Writes', () => {
       month: '2026-04-01',
     });
     expect(await countFinancialRecords(db)).toBe(2);
+  });
+});
+
+describe('Account Switching & Database Isolation (Phase 4 Part 5)', () => {
+  it('stores owner_user_id and rejects owner mismatch on subsequent access', async () => {
+    const dbA = await SqlJsAdapter.createWithMigrations();
+    const userA = 'user-uuid-1111-aaaa';
+    const userB = 'user-uuid-2222-bbbb';
+
+    // First time open/init stores owner_user_id
+    await assertDatabaseOwner(dbA, userA);
+
+    // Verify stored owner
+    const meta = await dbA.getFirstAsync<{ value: string }>(
+      "SELECT value FROM app_meta WHERE key = 'owner_user_id';"
+    );
+    expect(meta?.value).toBe(userA);
+
+    // canSync returns true for matching owner
+    expect(await canSync(dbA, userA)).toBe(true);
+
+    // canSync returns false for different user
+    expect(await canSync(dbA, userB)).toBe(false);
+
+    // assertDatabaseOwner succeeds when the same user accesses it
+    await expect(assertDatabaseOwner(dbA, userA)).resolves.not.toThrow();
+
+    // assertDatabaseOwner throws error when a different user accesses it
+    await expect(assertDatabaseOwner(dbA, userB)).rejects.toThrow(
+      /Database owner mismatch/i
+    );
+  });
+
+  it('guarantees user A outbox is not visible from user B database partition', async () => {
+    // Two separate in-memory test databases representing separate account partitions
+    const dbA = await SqlJsAdapter.createWithMigrations();
+    const dbB = await SqlJsAdapter.createWithMigrations();
+    const userA = 'user-A-id-001';
+    const userB = 'user-B-id-002';
+
+    await assertDatabaseOwner(dbA, userA);
+    await assertDatabaseOwner(dbB, userB);
+
+    // User A creates a category and a transaction in dbA
+    const catA = await createCategory(
+      dbA,
+      {
+        name: 'User A Food',
+        icon: 'utensils',
+        color: '#FFAA00',
+        type: 'expense',
+      },
+      { userId: userA }
+    );
+    expect(catA.ok).toBe(true);
+    if (!catA.ok) return;
+
+    const txA = await createTransaction(
+      dbA,
+      {
+        type: 'expense',
+        amount: 4500,
+        category_id: catA.value.id,
+        date: '2026-03-10',
+        note: 'User A groceries',
+      },
+      { userId: userA }
+    );
+    expect(txA.ok).toBe(true);
+    if (!txA.ok) return;
+
+    // Verify user A has 2 outbox entries in dbA
+    const outboxA = await getOutboxEntries(dbA);
+    expect(outboxA).toHaveLength(2);
+    expect(await getPendingCount(dbA)).toBe(2);
+
+    // CRITICAL: User B's database must have ZERO outbox entries
+    // User A's outbox is completely invisible from user B's database
+    const outboxB = await getOutboxEntries(dbB);
+    expect(outboxB).toHaveLength(0);
+    expect(await getPendingCount(dbB)).toBe(0);
+
+    // User B now creates their own category and transaction in dbB
+    const catB = await createCategory(
+      dbB,
+      {
+        name: 'User B Transport',
+        icon: 'car',
+        color: '#00AAFF',
+        type: 'expense',
+      },
+      { userId: userB }
+    );
+    expect(catB.ok).toBe(true);
+    if (!catB.ok) return;
+
+    const txB = await createTransaction(
+      dbB,
+      {
+        type: 'expense',
+        amount: 2000,
+        category_id: catB.value.id,
+        date: '2026-03-12',
+        note: 'User B fuel',
+      },
+      { userId: userB }
+    );
+    expect(txB.ok).toBe(true);
+    if (!txB.ok) return;
+
+    // Verify user B's outbox entries in dbB
+    const outboxBAfter = await getOutboxEntries(dbB);
+    expect(outboxBAfter).toHaveLength(2);
+    expect(outboxBAfter.map((o) => o.entity_id)).toEqual([catB.value.id, txB.value.id]);
+
+    // Verify user A's outbox in dbA still contains only user A's entries
+    const outboxAAfter = await getOutboxEntries(dbA);
+    expect(outboxAAfter).toHaveLength(2);
+    expect(outboxAAfter.map((o) => o.entity_id)).toEqual([catA.value.id, txA.value.id]);
+
+    // Cross-user sync permissions
+    expect(await canSync(dbA, userA)).toBe(true);
+    expect(await canSync(dbA, userB)).toBe(false);
+    expect(await canSync(dbB, userB)).toBe(true);
+    expect(await canSync(dbB, userA)).toBe(false);
   });
 });
