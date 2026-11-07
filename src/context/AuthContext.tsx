@@ -28,7 +28,15 @@ import { ToastContext } from '@/components/Toast';
 import { openDatabaseForUser, getCurrentDatabase, closeDatabase } from '@/db/database';
 import { getProfile, upsertProfileFromServer } from '@/db/repositories/profile';
 
-export type SyncPausedReason = 'offline' | 'session_expired' | null;
+import {
+  SyncPausedReason,
+  getSyncPausedReason,
+  setGlobalSyncPaused,
+  subscribeSyncPaused,
+} from '@/sync/state';
+
+export type { SyncPausedReason };
+export { getSyncPausedReason, setGlobalSyncPaused, subscribeSyncPaused };
 
 export interface AuthContextValue {
   user: User | null;
@@ -126,7 +134,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [profile, setProfileState] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [profileLoading, setProfileLoading] = useState<boolean>(false);
-  const [syncPaused, setSyncPaused] = useState<SyncPausedReason>(null);
+  const [syncPaused, setSyncPausedState] = useState<SyncPausedReason>(null);
+  const setSyncPaused = useCallback((reason: SyncPausedReason) => {
+    setGlobalSyncPaused(reason);
+    setSyncPausedState(reason);
+  }, []);
 
   // Track user-initiated sign out to distinguish from unexpected session expiry
   const isUserSigningOut = useRef(false);
@@ -160,7 +172,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch {
       // Router may not be ready if called during initial root mounting
     }
-  }, [toastContext]);
+  }, [setSyncPaused, toastContext]);
+
+  useEffect(() => {
+    return subscribeSyncPaused((reason) => {
+      setSyncPausedState(reason);
+      if (reason === 'session_expired') {
+        handleSessionExpired();
+      }
+    });
+  }, [handleSessionExpired]);
 
   /**
    * Updates profile state and updates the local SQLite profile cache if available.

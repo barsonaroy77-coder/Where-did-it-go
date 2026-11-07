@@ -9,6 +9,7 @@ import { SQLiteDatabase } from 'expo-sqlite';
 import { useAuth } from '@/hooks/useAuth';
 import { openDatabaseForUser, closeDatabase, logDatabaseDevStats } from './database';
 import { runMigrations } from './migrate';
+import { runSync, setupAppStateSyncTrigger } from '@/sync';
 
 export interface DatabaseContextValue {
   db: SQLiteDatabase | null;
@@ -85,6 +86,9 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
           lastLoggedVersionRef.current = version;
           await logDatabaseDevStats(userDb, version);
         }
+
+        // Trigger 1: Run sync on app launch after the database is ready (PRD 8.5)
+        runSync(userDb, targetUserId).catch(() => {});
       } catch (err: unknown) {
         if (isCancelled) {
           return;
@@ -106,6 +110,18 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
       isCancelled = true;
     };
   }, [authLoading, isAuthenticated, user?.id]);
+
+  // Trigger 2: Run sync when the app returns to the foreground (AppState) (PRD 8.5)
+  useEffect(() => {
+    if (!db || !user?.id) {
+      return;
+    }
+    const unsubscribe = setupAppStateSyncTrigger(
+      () => db,
+      () => user.id
+    );
+    return unsubscribe;
+  }, [db, user?.id]);
 
   const contextValue: DatabaseContextValue = {
     db,
