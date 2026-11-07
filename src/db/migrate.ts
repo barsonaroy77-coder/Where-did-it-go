@@ -1,4 +1,4 @@
-import { SQLiteDatabase } from 'expo-sqlite';
+import { DbLike } from './types';
 import { migrations } from './migrations';
 
 /**
@@ -10,10 +10,10 @@ import { migrations } from './migrations';
  * 4. Stops with a clear error if any migration fails.
  * 5. Running it twice changes nothing (idempotent).
  *
- * @param db The SQLite database instance.
+ * @param db The SQLite database or DbLike instance.
  * @returns The final schema version number.
  */
-export async function runMigrations(db: SQLiteDatabase): Promise<number> {
+export async function runMigrations(db: DbLike): Promise<number> {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version;');
   const currentVersion = row?.user_version ?? 0;
 

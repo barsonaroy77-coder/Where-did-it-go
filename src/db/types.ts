@@ -189,3 +189,29 @@ export interface AppMetaRow {
   key: string;
   value: string | null;
 }
+
+// -----------------------------------------------------------------------------
+// 3. Database Abstraction Interface (DbLike)
+// -----------------------------------------------------------------------------
+
+export type SQLiteBindValue = string | number | null | boolean | Uint8Array | ArrayBuffer;
+export type SQLiteBindParams = Record<string, SQLiteBindValue> | SQLiteBindValue[];
+export type SQLiteVariadicBindParams = SQLiteBindValue[];
+
+export interface SQLiteRunResult {
+  lastInsertRowId: number;
+  changes: number;
+}
+
+export interface DbLike {
+  runAsync(source: string, params: SQLiteBindParams): Promise<SQLiteRunResult>;
+  runAsync(source: string, ...params: SQLiteVariadicBindParams): Promise<SQLiteRunResult>;
+  getFirstAsync<T>(source: string, params: SQLiteBindParams): Promise<T | null>;
+  getFirstAsync<T>(source: string, ...params: SQLiteVariadicBindParams): Promise<T | null>;
+  getAllAsync<T>(source: string, params: SQLiteBindParams): Promise<T[]>;
+  getAllAsync<T>(source: string, ...params: SQLiteVariadicBindParams): Promise<T[]>;
+  execAsync(source: string): Promise<void>;
+  withTransactionAsync(task: () => Promise<void>): Promise<void>;
+}
+
+
