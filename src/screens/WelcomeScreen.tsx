@@ -132,7 +132,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           </View>
         ) : (
           /* Unauthenticated Landing / Auth Form */
-          <AuthCard />
+          <>
+            <AuthCard />
+            {__DEV__ && onNavigateToDemo && (
+              <Button
+                variant="secondary"
+                size="sm"
+                fullWidth
+                onPress={onNavigateToDemo}
+                title="View Style Guide Demo (Dev Only)"
+                style={styles.demoButton}
+              />
+            )}
+          </>
         )}
 
         {/* Footer info */}

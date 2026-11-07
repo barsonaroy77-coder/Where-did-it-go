@@ -11,7 +11,9 @@ export default function WelcomeRoute() {
           title: 'Welcome',
         }}
       />
-      <WelcomeScreen onNavigateToDemo={() => router.push('/demo')} />
+      <WelcomeScreen
+        onNavigateToDemo={__DEV__ ? () => router.push('/style-demo') : undefined}
+      />
     </>
   );
 }

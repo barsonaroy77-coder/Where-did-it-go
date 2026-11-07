@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Redirect, Stack, router } from 'expo-router';
 import {
   colors,
   fonts,
@@ -11,6 +11,7 @@ import {
   spacing,
 } from '@/theme';
 import { Button, Card, Chip, Input, useToast } from '@/components';
+import { useAuth } from '@/hooks/useAuth';
 
 const COLOR_SWATCHES = [
   { name: 'Cream', token: 'colors.background', hex: colors.background },
@@ -20,19 +21,36 @@ const COLOR_SWATCHES = [
   { name: 'Black', token: 'colors.black', hex: colors.black },
 ] as const;
 
+/**
+ * Neobrutalist Style Guide Showcase screen.
+ * Moved to /style-demo and reachable ONLY in development (__DEV__).
+ */
 export default function StyleDemo() {
+  const { isAuthenticated } = useAuth();
   const { showToast } = useToast();
 
   const [normalInput, setNormalInput] = useState('');
   const [errorInput, setErrorInput] = useState('invalid-amount');
   const [interactiveChipSelected, setInteractiveChipSelected] = useState(false);
 
+  if (!__DEV__) {
+    return <Redirect href="/" />;
+  }
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace(isAuthenticated ? '/' : '/welcome');
+    }
+  };
+
   return (
     <>
       <Stack.Screen
         options={{
           title: 'Style Demo',
-          headerBackTitle: 'Welcome',
+          headerBackTitle: isAuthenticated ? 'Dashboard' : 'Welcome',
         }}
       />
       <ScrollView
@@ -48,8 +66,8 @@ export default function StyleDemo() {
           <Button
             variant="secondary"
             size="sm"
-            onPress={() => router.replace('/')}
-            title="← Back to Welcome Screen"
+            onPress={handleBack}
+            title="← Back"
             style={styles.backButton}
           />
         </View>

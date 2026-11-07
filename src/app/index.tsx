@@ -1,6 +1,6 @@
 import React from 'react';
-import { Stack, router } from 'expo-router';
-import { WelcomeScreen } from '@/screens/WelcomeScreen';
+import { Stack } from 'expo-router';
+import { DashboardScreen } from '@/screens/DashboardScreen';
 
 export default function IndexRoute() {
   return (
@@ -8,10 +8,10 @@ export default function IndexRoute() {
       <Stack.Screen
         options={{
           headerShown: false,
-          title: 'Where Did It Go?',
+          title: 'Dashboard',
         }}
       />
-      <WelcomeScreen onNavigateToDemo={() => router.push('/demo')} />
+      <DashboardScreen />
     </>
   );
 }
