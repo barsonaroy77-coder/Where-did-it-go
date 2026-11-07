@@ -10,6 +10,7 @@ import { Stack, ThemeProvider } from 'expo-router';
 import { navigationTheme, colors } from '@/theme';
 import { ToastProvider } from '@/components';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { DatabaseProvider, useDatabase } from '@/db';
 
 // Keep the splash screen visible until fonts and initial auth state are ready
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -18,9 +19,15 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 
 function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   const { isAuthenticated, isLoading, profile, profileLoading } = useAuth();
+  const { isReady: isDbReady } = useDatabase();
 
-  // Keep splash screen visible until both fonts and stored auth session + profile are resolved
-  const isReady = fontsLoaded && !isLoading && !profileLoading;
+  // Keep splash screen visible until fonts and initial auth state are ready.
+  // For a signed-in user, keep the splash screen up until the profile and database are ready.
+  // Signed-out users do not open any database and proceed once auth resolves.
+  const isReady =
+    fontsLoaded &&
+    !isLoading &&
+    (isAuthenticated ? !profileLoading && isDbReady : true);
 
   useEffect(() => {
     if (isReady) {
@@ -127,7 +134,9 @@ export default function RootLayout() {
     <ThemeProvider value={navigationTheme}>
       <ToastProvider>
         <AuthProvider>
-          <RootNavigator fontsLoaded={isFontReady} />
+          <DatabaseProvider>
+            <RootNavigator fontsLoaded={isFontReady} />
+          </DatabaseProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>
