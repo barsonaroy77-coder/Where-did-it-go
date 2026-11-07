@@ -1,4 +1,5 @@
 import migration0001 from './0001_init';
+import migration0002 from './0002_schema';
 
 export interface Migration {
   version: number;
@@ -7,4 +8,6 @@ export interface Migration {
 
 export const migrations: Migration[] = [
   migration0001,
+  migration0002,
 ];
+

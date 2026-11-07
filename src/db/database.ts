@@ -131,3 +131,23 @@ export async function openDatabaseForUser(userId: string): Promise<SQLiteDatabas
 
   return activeOpenPromise;
 }
+
+/**
+ * Development-only helper that logs the table count and the migration version once.
+ * Strictly avoids logging any user identifiers, sensitive data, or table rows.
+ */
+export async function logDatabaseDevStats(db: SQLiteDatabase, version: number): Promise<void> {
+  if (!__DEV__) {
+    return;
+  }
+  try {
+    const result = await db.getFirstAsync<{ count: number }>(
+      "SELECT count(*) as count FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%';"
+    );
+    const tableCount = result?.count ?? 0;
+    console.log(`db ready, version ${version}, ${tableCount} tables`);
+  } catch {
+    // Silently ignore in development logging
+  }
+}
+

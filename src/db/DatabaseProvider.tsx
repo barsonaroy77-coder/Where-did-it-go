@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { useAuth } from '@/hooks/useAuth';
-import { openDatabaseForUser, closeDatabase } from './database';
+import { openDatabaseForUser, closeDatabase, logDatabaseDevStats } from './database';
 import { runMigrations } from './migrate';
 
 export interface DatabaseContextValue {
@@ -80,10 +80,10 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
         setIsReady(true);
         setError(null);
 
-        // Development-only check: logs "db ready, version N" once without user id or sensitive data
+        // Development-only check: logs table count and migration version once (no data, no user id)
         if (__DEV__ && lastLoggedVersionRef.current !== version) {
           lastLoggedVersionRef.current = version;
-          console.log(`db ready, version ${version}`);
+          await logDatabaseDevStats(userDb, version);
         }
       } catch (err: unknown) {
         if (isCancelled) {
