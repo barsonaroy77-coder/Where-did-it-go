@@ -42,7 +42,8 @@
             "cmakeVersion": "3.31.6"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
