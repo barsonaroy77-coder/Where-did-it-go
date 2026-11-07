@@ -12,13 +12,13 @@ import {
   fontSizes,
   lineHeights,
   radii,
-  shadowOffsets,
   shadows,
   spacing,
 } from '@/theme';
 import { Button, Input, useToast } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { validateEmail, validatePassword } from '@/lib/auth';
+import { statusCodes } from '@/lib/googleAuth';
 
 export type AuthMode = 'sign-in' | 'sign-up' | 'forgot-password';
 
@@ -31,7 +31,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
   initialMode = 'sign-in',
   onSuccess,
 }) => {
-  const { signIn, signUp, resetPassword, isConfigured } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword, isConfigured } = useAuth();
   const { showToast } = useToast();
 
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -43,6 +43,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const resetFormState = (newMode: AuthMode) => {
     setMode(newMode);
@@ -52,11 +53,37 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     setSuccessMessage(null);
   };
 
-  const handleGooglePress = () => {
-    showToast({
-      message: 'Google Sign-In will be configured in Task 3.3.',
-      variant: 'default',
-    });
+  const handleGoogleSignIn = async () => {
+    setGeneralError(null);
+    setSuccessMessage(null);
+    setIsGoogleLoading(true);
+
+    try {
+      const result = await signInWithGoogle();
+      if (result.error) {
+        if (
+          result.error.code === statusCodes.SIGN_IN_CANCELLED ||
+          result.error.code === 'SIGN_IN_CANCELLED'
+        ) {
+          // User intentionally cancelled or dismissed the Google Sign-In prompt
+          return;
+        }
+        setGeneralError(result.error.message);
+        showToast({ message: result.error.message, variant: 'error' });
+      } else {
+        showToast({ message: 'Signed in with Google successfully!', variant: 'success' });
+        onSuccess?.();
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'An unexpected error occurred during Google sign-in.';
+      setGeneralError(message);
+      showToast({ message, variant: 'error' });
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -183,27 +210,29 @@ export const AuthCard: React.FC<AuthCardProps> = ({
         </View>
       )}
 
-      {/* Visually distinct Google OAuth placeholder button */}
+      {/* Visually distinct Google Sign-In button */}
       {mode !== 'forgot-password' && (
         <>
-          <Pressable
-            accessibilityRole="button"
+          <Button
+            variant="secondary"
+            size="md"
+            fullWidth
+            loading={isGoogleLoading}
+            disabled={isSubmitting || isGoogleLoading}
+            onPress={handleGoogleSignIn}
             accessibilityLabel="Continue with Google"
-            accessibilityHint="Will open Google Sign-In when configured in Task 3.3"
-            onPress={handleGooglePress}
-            style={({ pressed }) => [
-              styles.googleButton,
-              pressed && styles.googleButtonPressed,
-            ]}
+            accessibilityHint="Sign in using your Google account"
           >
-            <View style={styles.googleIconBadge}>
-              <Text style={styles.googleIconText}>G</Text>
+            <View style={styles.googleButtonContent}>
+              <View style={styles.googleIconBadge}>
+                <Text style={styles.googleIconText}>G</Text>
+              </View>
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+              <View style={styles.googleTagBadge}>
+                <Text style={styles.googleTagText}>OAuth</Text>
+              </View>
             </View>
-            <Text style={styles.googleButtonText}>Continue with Google</Text>
-            <View style={styles.googleTagBadge}>
-              <Text style={styles.googleTagText}>OAuth</Text>
-            </View>
-          </Pressable>
+          </Button>
 
           {/* Neobrutalist Divider */}
           <View style={styles.dividerRow}>
@@ -255,7 +284,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
           autoCorrect={false}
           autoComplete="email"
           error={emailError ?? undefined}
-          editable={!isSubmitting}
+          editable={!isSubmitting && !isGoogleLoading}
         />
 
         {mode !== 'forgot-password' && (
@@ -272,7 +301,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
             autoCorrect={false}
             autoComplete={mode === 'sign-in' ? 'password' : 'new-password'}
             error={passwordError ?? undefined}
-            editable={!isSubmitting}
+            editable={!isSubmitting && !isGoogleLoading}
           />
         )}
 
@@ -283,6 +312,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
             accessibilityLabel="Forgot Password"
             onPress={() => resetFormState('forgot-password')}
             style={styles.forgotLink}
+            disabled={isSubmitting || isGoogleLoading}
           >
             <Text style={styles.forgotLinkText}>Forgot your password?</Text>
           </Pressable>
@@ -294,7 +324,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
           size="lg"
           fullWidth
           loading={isSubmitting}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isGoogleLoading}
           onPress={handleSubmit}
           title={
             mode === 'sign-in'
@@ -398,26 +428,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: lineHeights.sm,
   },
-  googleButton: {
+  googleButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
-    borderWidth: borderWidths.regular,
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
     gap: spacing.sm,
-    ...shadows.sm,
-  },
-  googleButtonPressed: {
-    transform: [
-      { translateX: shadowOffsets.sm.width },
-      { translateY: shadowOffsets.sm.height },
-    ],
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 0,
   },
   googleIconBadge: {
     width: 24,

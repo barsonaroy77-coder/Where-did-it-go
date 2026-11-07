@@ -14,9 +14,12 @@ import {
   getSession,
   signInWithEmail as apiSignInWithEmail,
   signUpWithEmail as apiSignUpWithEmail,
-  signOut as apiSignOut,
   sendPasswordResetEmail as apiSendPasswordResetEmail,
 } from '@/lib/auth';
+import {
+  signInWithGoogle as apiSignInWithGoogle,
+  signOutGoogle as apiSignOutGoogle,
+} from '@/lib/googleAuth';
 
 export interface AuthContextValue {
   user: User | null;
@@ -26,6 +29,7 @@ export interface AuthContextValue {
   isConfigured: boolean;
   signIn: (email: string, password: string) => Promise<AuthResult<SignInSuccessData>>;
   signUp: (email: string, password: string) => Promise<AuthResult<SignUpSuccessData>>;
+  signInWithGoogle: () => Promise<AuthResult<SignInSuccessData>>;
   signOut: () => Promise<AuthResult<null>>;
   resetPassword: (email: string) => Promise<AuthResult<null>>;
 }
@@ -102,8 +106,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     []
   );
 
+  const signInWithGoogle = useCallback(async (): Promise<AuthResult<SignInSuccessData>> => {
+    const result = await apiSignInWithGoogle();
+    if (result.data?.session) {
+      setSession(result.data.session);
+      setUser(result.data.user);
+    }
+    return result;
+  }, []);
+
   const signOut = useCallback(async (): Promise<AuthResult<null>> => {
-    const result = await apiSignOut();
+    const result = await apiSignOutGoogle();
     setSession(null);
     setUser(null);
     return result;
@@ -124,6 +137,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isConfigured: isSupabaseConfigured,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
     resetPassword,
   };
