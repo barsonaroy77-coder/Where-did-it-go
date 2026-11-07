@@ -17,20 +17,24 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, profile, profileLoading } = useAuth();
+
+  // Keep splash screen visible until both fonts and stored auth session + profile are resolved
+  const isReady = fontsLoaded && !isLoading && !profileLoading;
 
   useEffect(() => {
-    if (!isLoading && fontsLoaded) {
+    if (isReady) {
       SplashScreen.hideAsync().catch(() => {
         // Ignore splash screen hide errors if already hidden
       });
     }
-  }, [isLoading, fontsLoaded]);
+  }, [isReady]);
 
-  // Keep splash screen visible until both fonts and stored auth session are resolved
-  if (isLoading || !fontsLoaded) {
+  if (!isReady) {
     return null;
   }
+
+  const hasProfile = Boolean(profile);
 
   return (
     <Stack
@@ -44,8 +48,11 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
         },
       }}
     >
-      {/* Protected routes: reachable only when signed in */}
-      <Stack.Protected guard={isAuthenticated} redirectTo="/welcome">
+      {/* Protected routes: reachable only when signed in with a profile */}
+      <Stack.Protected
+        guard={isAuthenticated && hasProfile}
+        redirectTo={!isAuthenticated ? '/welcome' : '/onboarding'}
+      >
         <Stack.Screen
           name="index"
           options={{
@@ -62,8 +69,25 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
         />
       </Stack.Protected>
 
+      {/* Onboarding route: reachable only when signed in with no profile */}
+      <Stack.Protected
+        guard={isAuthenticated && !hasProfile}
+        redirectTo={!isAuthenticated ? '/welcome' : '/'}
+      >
+        <Stack.Screen
+          name="onboarding"
+          options={{
+            headerShown: false,
+            title: 'Onboarding',
+          }}
+        />
+      </Stack.Protected>
+
       {/* Public auth route: reachable only when signed out */}
-      <Stack.Protected guard={!isAuthenticated} redirectTo="/">
+      <Stack.Protected
+        guard={!isAuthenticated}
+        redirectTo={hasProfile ? '/' : '/onboarding'}
+      >
         <Stack.Screen
           name="welcome"
           options={{
@@ -76,13 +100,13 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
       {/* Dev-only route: reachable only in development (__DEV__) */}
       <Stack.Protected
         guard={Boolean(__DEV__)}
-        redirectTo={isAuthenticated ? '/' : '/welcome'}
+        redirectTo={!isAuthenticated ? '/welcome' : hasProfile ? '/' : '/onboarding'}
       >
         <Stack.Screen
           name="style-demo"
           options={{
             title: 'Style Demo',
-            headerBackTitle: isAuthenticated ? 'Dashboard' : 'Welcome',
+            headerBackTitle: isAuthenticated ? (hasProfile ? 'Dashboard' : 'Onboarding') : 'Welcome',
           }}
         />
       </Stack.Protected>

@@ -22,14 +22,19 @@ import {
   signInWithGoogle as apiSignInWithGoogle,
   signOutGoogle as apiSignOutGoogle,
 } from '@/lib/googleAuth';
+import { Profile, fetchProfile } from '@/lib/profile';
 import { ToastContext } from '@/components/Toast';
 
 export interface AuthContextValue {
   user: User | null;
   session: Session | null;
+  profile: Profile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  profileLoading: boolean;
   isConfigured: boolean;
+  refreshProfile: () => Promise<Profile | null>;
+  setProfile: (profile: Profile | null) => void;
   signIn: (email: string, password: string) => Promise<AuthResult<SignInSuccessData>>;
   signUp: (email: string, password: string) => Promise<AuthResult<SignUpSuccessData>>;
   signInWithGoogle: () => Promise<AuthResult<SignInSuccessData>>;
@@ -51,7 +56,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [profileLoading, setProfileLoading] = useState<boolean>(false);
 
   // Track user-initiated sign out to distinguish from unexpected session expiry
   const isUserSigningOut = useRef(false);
@@ -76,6 +83,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setSession(null);
     setUser(null);
+    setProfile(null);
+    setProfileLoading(false);
     prevSessionRef.current = null;
 
     try {
@@ -101,12 +110,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         if (isMounted) {
-          setSession(data.session);
-          setUser(data.session?.user ?? null);
-          prevSessionRef.current = data.session;
+          const initialSession = data.session;
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          prevSessionRef.current = initialSession;
+
+          if (initialSession?.user) {
+            setProfileLoading(true);
+            try {
+              // Phase 4: Cache the profile locally in SQLite so the app can start offline later.
+              // In Phase 4, attempt local SQLite fetch first, then remote fetch/sync.
+              const profileRes = await fetchProfile();
+              if (isMounted) {
+                setProfile(profileRes.data ?? null);
+              }
+            } catch {
+              if (isMounted) {
+                setProfile(null);
+              }
+            } finally {
+              if (isMounted) {
+                setProfileLoading(false);
+              }
+            }
+          } else {
+            setProfile(null);
+            setProfileLoading(false);
+          }
         }
       } catch (err) {
         console.error('[AuthProvider] Error loading initial session:', err);
+        if (isMounted) {
+          setProfile(null);
+          setProfileLoading(false);
+        }
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -127,6 +164,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         prevSessionRef.current = null;
         setSession(null);
         setUser(null);
+        setProfile(null);
+        setProfileLoading(false);
         setIsLoading(false);
 
         // If the sign-out was not user-initiated and we previously had an active session,
@@ -147,6 +186,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(currentSession?.user ?? null);
         prevSessionRef.current = currentSession;
         setIsLoading(false);
+
+        if (currentSession?.user) {
+          setProfileLoading(true);
+          // Phase 4: Cache the profile locally in SQLite so the app can start offline later.
+          fetchProfile()
+            .then((res) => {
+              if (isMounted) {
+                setProfile(res.data ?? null);
+              }
+            })
+            .catch(() => {
+              if (isMounted) {
+                setProfile(null);
+              }
+            })
+            .finally(() => {
+              if (isMounted) {
+                setProfileLoading(false);
+              }
+            });
+        } else {
+          setProfile(null);
+          setProfileLoading(false);
+        }
         return;
       }
 
@@ -211,6 +274,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const result = await apiSignOutGoogle();
       setSession(null);
       setUser(null);
+      setProfile(null);
+      setProfileLoading(false);
       prevSessionRef.current = null;
       return result;
     } finally {
@@ -228,12 +293,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     []
   );
 
+  const refreshProfile = useCallback(async (): Promise<Profile | null> => {
+    setProfileLoading(true);
+    try {
+      // Phase 4: Cache the profile locally in SQLite so the app can start offline later.
+      const res = await fetchProfile();
+      setProfile(res.data ?? null);
+      return res.data ?? null;
+    } catch {
+      return null;
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
   const value: AuthContextValue = {
     user,
     session,
+    profile,
     isAuthenticated: Boolean(session && user),
     isLoading,
+    profileLoading,
     isConfigured: isSupabaseConfigured,
+    refreshProfile,
+    setProfile,
     signIn,
     signUp,
     signInWithGoogle,
