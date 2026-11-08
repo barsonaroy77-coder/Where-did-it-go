@@ -31,4 +31,6 @@ export { AppTabBar } from './AppTabBar';
 
 export * from './icons';
 export * from './illustrations';
+export * from './transaction';
+
 
