@@ -116,6 +116,14 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
             headerBackTitle: isAuthenticated ? (hasProfile ? 'Dashboard' : 'Onboarding') : 'Welcome',
           }}
         />
+        <Stack.Screen
+          name="dev-sync"
+          options={{
+            headerShown: false,
+            title: 'Sync Inspector',
+            headerBackTitle: 'Dashboard',
+          }}
+        />
       </Stack.Protected>
     </Stack>
   );

@@ -728,4 +728,155 @@ describe('Sync Engine Prototype (Categories and Transactions)', () => {
     expect(outbox.length).toBe(1);
     expect(outbox[0].status).toBe('pending');
   });
+
+  // 14. server edit to synced transaction is applied and cursor advances
+  test('server edit to synced transaction is applied and cursor advances', async () => {
+    const catRes = await createCategory(
+      db,
+      { name: 'Dining', icon: 'utensils', color: '#FF5500', type: 'expense' },
+      { userId: testUserId }
+    );
+    expect(catRes.ok).toBe(true);
+    if (!catRes.ok) throw new Error('Create category failed');
+    const categoryId = catRes.value.id;
+
+    // Push the category so it is synced
+    await pushOutbox(db, remote);
+
+    const txId = 'tx-sync-1';
+    const nowIso = '2026-11-07T12:00:00.000Z';
+    await db.runAsync(
+      `INSERT INTO transactions (
+        id, user_id, type, amount, category_id, note, date,
+        recurring_id, occurrence_date, version, change_seq,
+        created_at, updated_at, deleted_at, local_revision, sync_state
+      ) VALUES (?, ?, 'expense', 2500, ?, 'Original note', '2026-11-07', NULL, NULL, 1, 100, ?, ?, NULL, 0, 'synced');`,
+      [txId, testUserId, categoryId, nowIso, nowIso]
+    );
+
+    await db.runAsync(
+      "INSERT INTO sync_state_meta (table_name, last_change_seq, updated_at) VALUES ('transactions', 100, ?);",
+      [nowIso]
+    );
+
+    remote.fetchChangesHandler = async (table) => {
+      if (table === 'transactions') {
+        return [
+          {
+            id: txId,
+            user_id: testUserId,
+            type: 'expense',
+            amount: 2500,
+            category_id: categoryId,
+            note: 'Updated server note',
+            date: '2026-11-07',
+            recurring_id: null,
+            occurrence_date: null,
+            version: 2,
+            change_seq: 150,
+            created_at: nowIso,
+            updated_at: '2026-11-07T13:00:00.000Z',
+            deleted_at: null,
+          },
+        ];
+      }
+      return [];
+    };
+
+    const summary = await runSync(db, testUserId, remote);
+    expect(summary.stoppedBecause).toBeNull();
+    expect(summary.pulled).toBe(1);
+
+    const updatedTx = await db.getFirstAsync<TransactionRow>(
+      'SELECT * FROM transactions WHERE id = ?;',
+      [txId]
+    );
+    expect(updatedTx?.note).toBe('Updated server note');
+    expect(updatedTx?.version).toBe(2);
+    expect(updatedTx?.change_seq).toBe(150);
+    expect(updatedTx?.sync_state).toBe('synced');
+
+    const meta = await db.getFirstAsync<{ last_change_seq: number }>(
+      "SELECT last_change_seq FROM sync_state_meta WHERE table_name = 'transactions';"
+    );
+    expect(meta?.last_change_seq).toBe(150);
+  });
+
+  // 15. server edit to a row whose cursor value is lower than stored cursor but inside 500 overlap window is still applied
+  test('server edit to a row whose cursor value is lower than stored cursor but inside 500 overlap window is still applied', async () => {
+    const catRes = await createCategory(
+      db,
+      { name: 'Utilities', icon: 'bolt', color: '#FFAA00', type: 'expense' },
+      { userId: testUserId }
+    );
+    expect(catRes.ok).toBe(true);
+    if (!catRes.ok) throw new Error('Create category failed');
+    const categoryId = catRes.value.id;
+
+    await pushOutbox(db, remote);
+
+    const txId = 'tx-overlap-1';
+    const nowIso = '2026-11-07T12:00:00.000Z';
+    // Local row has version 1, change_seq 100, note 'Original note'
+    await db.runAsync(
+      `INSERT INTO transactions (
+        id, user_id, type, amount, category_id, note, date,
+        recurring_id, occurrence_date, version, change_seq,
+        created_at, updated_at, deleted_at, local_revision, sync_state
+      ) VALUES (?, ?, 'expense', 1500, ?, 'Original note', '2026-11-07', NULL, NULL, 1, 100, ?, ?, NULL, 0, 'synced');`,
+      [txId, testUserId, categoryId, nowIso, nowIso]
+    );
+
+    // Stored cursor is 600.
+    // Overlap window is 500, so pull requests changes with afterChangeSeq = 600 - 500 = 100.
+    await db.runAsync(
+      "INSERT INTO sync_state_meta (table_name, last_change_seq, updated_at) VALUES ('transactions', 600, ?);",
+      [nowIso]
+    );
+
+    // Row on server has change_seq 450 (< 600, but > 100). Note updated, version 2.
+    remote.fetchChangesHandler = async (table, afterChangeSeq) => {
+      if (table === 'transactions') {
+        expect(afterChangeSeq).toBe(100);
+        return [
+          {
+            id: txId,
+            user_id: testUserId,
+            type: 'expense',
+            amount: 1500,
+            category_id: categoryId,
+            note: 'Updated note within overlap',
+            date: '2026-11-07',
+            recurring_id: null,
+            occurrence_date: null,
+            version: 2,
+            change_seq: 450,
+            created_at: nowIso,
+            updated_at: '2026-11-07T13:00:00.000Z',
+            deleted_at: null,
+          },
+        ];
+      }
+      return [];
+    };
+
+    const summary = await runSync(db, testUserId, remote);
+    expect(summary.stoppedBecause).toBeNull();
+    expect(summary.pulled).toBe(1);
+
+    const updatedTx = await db.getFirstAsync<TransactionRow>(
+      'SELECT * FROM transactions WHERE id = ?;',
+      [txId]
+    );
+    expect(updatedTx?.note).toBe('Updated note within overlap');
+    expect(updatedTx?.version).toBe(2);
+    expect(updatedTx?.change_seq).toBe(450);
+    expect(updatedTx?.sync_state).toBe('synced');
+
+    // Cursor should remain at 600 because 450 < 600
+    const meta = await db.getFirstAsync<{ last_change_seq: number }>(
+      "SELECT last_change_seq FROM sync_state_meta WHERE table_name = 'transactions';"
+    );
+    expect(meta?.last_change_seq).toBe(600);
+  });
 });

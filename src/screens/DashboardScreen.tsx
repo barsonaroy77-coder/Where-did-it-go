@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Button, Card, useToast } from '@/components';
 import { colors, fonts, fontSizes, lineHeights, spacing } from '@/theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -216,6 +217,14 @@ export const DashboardScreen: React.FC = () => {
               <View style={styles.buttonRow}>
                 <Button
                   variant="primary"
+                  size="md"
+                  fullWidth
+                  onPress={() => router.push('/dev-sync')}
+                  title="Open Sync Inspector"
+                  style={styles.actionBtn}
+                />
+                <Button
+                  variant="secondary"
                   size="md"
                   fullWidth
                   loading={isSyncing}
