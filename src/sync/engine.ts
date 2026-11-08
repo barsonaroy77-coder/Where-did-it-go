@@ -1,5 +1,6 @@
 import { DbLike, OutboxRow } from '@/db/types';
 import { canSync } from '@/db/database';
+import { emitTableChange } from '@/db/events';
 import { getSyncPausedReason } from './state';
 import { SyncRemote, defaultSyncRemote, SyncRemoteError, classifyRemoteError } from './remote';
 import { pushOutbox } from './push';
@@ -59,6 +60,9 @@ export async function resetInFlightEntries(db: DbLike): Promise<number> {
   const res = await db.runAsync(
     "UPDATE outbox SET status = 'pending' WHERE status = 'in_flight';"
   );
+  if (res.changes > 0) {
+    emitTableChange('outbox');
+  }
   return res.changes;
 }
 

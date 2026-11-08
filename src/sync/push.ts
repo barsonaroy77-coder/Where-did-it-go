@@ -1,6 +1,7 @@
 import { DbLike, OutboxRow } from '@/db/types';
 import { SyncRemote, OutboxEntry, SyncRemoteError, classifyRemoteError } from './remote';
 import { setGlobalSyncPaused } from './state';
+import { emitTableChange } from '@/db/events';
 
 export interface PushSummary {
   pushed: number;
@@ -414,6 +415,10 @@ export async function pushOutbox(
 
       failedCount++;
     }
+  }
+
+  if (pushedCount > 0 || failedCount > 0 || blockedCount > 0) {
+    emitTableChange('outbox');
   }
 
   return {

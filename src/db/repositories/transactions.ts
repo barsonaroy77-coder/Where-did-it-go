@@ -1,4 +1,5 @@
 import { DbLike, TransactionRow, CategoryRow } from '../types';
+import { emitTableChange } from '../events';
 import {
   CreateTransactionInput,
   UpdateTransactionInput,
@@ -130,6 +131,7 @@ export async function createTransaction(
       return { ok: false, error: 'Failed to create transaction' };
     }
 
+    emitTableChange(['transactions', 'outbox']);
     return { ok: true, value: createdTx };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -254,6 +256,7 @@ export async function updateTransaction(
       return { ok: false, error: 'Failed to update transaction' };
     }
 
+    emitTableChange(['transactions', 'outbox']);
     return { ok: true, value: updatedTx };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -318,6 +321,7 @@ export async function softDeleteTransaction(
       return { ok: false, error: 'Failed to delete transaction' };
     }
 
+    emitTableChange(['transactions', 'outbox']);
     return { ok: true, value: resultRow };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);

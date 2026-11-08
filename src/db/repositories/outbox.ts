@@ -1,6 +1,7 @@
 import { DbLike, OutboxRow, SyncedTableName, MutationOp } from '../types';
 import { generateClientUuid } from './uuid';
 import { RepositoryResult } from './types';
+import { emitTableChange } from '../events';
 
 export interface OutboxMutationOutcome {
   mutationId: string;
@@ -273,6 +274,7 @@ export async function restoreOutboxMutation<T extends { id: string }>(
       return { ok: false, error: 'Entity could not be restored' };
     }
 
+    emitTableChange([tableName, 'outbox']);
     return { ok: true, value: restoredRow };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);

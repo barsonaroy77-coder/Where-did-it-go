@@ -11,6 +11,7 @@ import { navigationTheme, colors } from '@/theme';
 import { ToastProvider } from '@/components';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { DatabaseProvider, useDatabase } from '@/db';
+import { MonthProvider } from '@/lib/MonthProvider';
 
 // Keep the splash screen visible until fonts and initial auth state are ready
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -61,10 +62,9 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
         redirectTo={!isAuthenticated ? '/welcome' : '/onboarding'}
       >
         <Stack.Screen
-          name="index"
+          name="(tabs)"
           options={{
             headerShown: false,
-            title: 'Dashboard',
           }}
         />
         <Stack.Screen
@@ -72,6 +72,27 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
           options={{
             headerShown: false,
             title: 'Dashboard',
+          }}
+        />
+        <Stack.Screen
+          name="add/index"
+          options={{
+            presentation: 'modal',
+            title: 'Add Transaction',
+          }}
+        />
+        <Stack.Screen
+          name="add/[id]"
+          options={{
+            presentation: 'modal',
+            title: 'Edit Transaction',
+          }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{
+            title: 'Settings',
+            headerBackTitle: 'Back',
           }}
         />
       </Stack.Protected>
@@ -143,7 +164,9 @@ export default function RootLayout() {
       <ToastProvider>
         <AuthProvider>
           <DatabaseProvider>
-            <RootNavigator fontsLoaded={isFontReady} />
+            <MonthProvider>
+              <RootNavigator fontsLoaded={isFontReady} />
+            </MonthProvider>
           </DatabaseProvider>
         </AuthProvider>
       </ToastProvider>

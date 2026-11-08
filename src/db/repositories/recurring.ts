@@ -1,4 +1,5 @@
 import { DbLike, RecurringRow, CategoryRow, RecurringFrequency } from '../types';
+import { emitTableChange } from '../events';
 import {
   CreateRecurringInput,
   UpdateRecurringInput,
@@ -185,6 +186,7 @@ export async function createRecurring(
       return { ok: false, error: 'Failed to create recurring rule' };
     }
 
+    emitTableChange(['recurring', 'outbox']);
     return { ok: true, value: createdRecurring };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -362,6 +364,7 @@ export async function updateRecurring(
       return { ok: false, error: 'Failed to update recurring rule' };
     }
 
+    emitTableChange(['recurring', 'outbox']);
     return { ok: true, value: updatedRecurring };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -426,6 +429,7 @@ export async function softDeleteRecurring(
       return { ok: false, error: 'Failed to delete recurring rule' };
     }
 
+    emitTableChange(['recurring', 'outbox']);
     return { ok: true, value: resultRow };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);

@@ -1,4 +1,5 @@
 import { DbLike, GoalRow } from '../types';
+import { emitTableChange } from '../events';
 import {
   CreateGoalInput,
   UpdateGoalInput,
@@ -110,6 +111,7 @@ export async function createGoal(
       return { ok: false, error: 'Failed to create goal' };
     }
 
+    emitTableChange(['goals', 'outbox']);
     return { ok: true, value: createdGoal };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -198,6 +200,7 @@ export async function updateGoal(
       return { ok: false, error: 'Failed to update goal' };
     }
 
+    emitTableChange(['goals', 'outbox']);
     return { ok: true, value: updatedGoal };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -262,6 +265,7 @@ export async function softDeleteGoal(
       return { ok: false, error: 'Failed to delete goal' };
     }
 
+    emitTableChange(['goals', 'outbox']);
     return { ok: true, value: resultRow };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);

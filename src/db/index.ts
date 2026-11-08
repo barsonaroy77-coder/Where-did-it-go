@@ -5,3 +5,5 @@ export * from './DatabaseProvider';
 export * from './types';
 export * from './repositories';
 export * from './smokeTest';
+export * from './events';
+export * from './live';

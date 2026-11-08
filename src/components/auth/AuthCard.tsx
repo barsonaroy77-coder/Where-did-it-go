@@ -17,7 +17,12 @@ import {
 } from '@/theme';
 import { Button, Input, useToast } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
-import { validateEmail, validatePassword } from '@/lib/auth';
+import {
+  validateEmail,
+  validatePassword,
+  getSafeAuthErrorMessage,
+  isNetworkOrOfflineError,
+} from '@/lib/auth';
 import { statusCodes } from '@/lib/googleAuth';
 
 export type AuthMode = 'sign-in' | 'sign-up' | 'forgot-password';
@@ -113,8 +118,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
       if (mode === 'sign-in') {
         const result = await signIn(email, password);
         if (result.error) {
-          setGeneralError(result.error.message);
-          showToast({ message: result.error.message, variant: 'error' });
+          const isNetwork = isNetworkOrOfflineError(result.error);
+          const safeMsg = getSafeAuthErrorMessage('sign-in', result.error);
+          setGeneralError(safeMsg);
+          if (isNetwork) {
+            showToast({ message: safeMsg, variant: 'error' });
+          }
         } else {
           showToast({ message: 'Signed in successfully!', variant: 'success' });
           onSuccess?.();
@@ -122,8 +131,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
       } else if (mode === 'sign-up') {
         const result = await signUp(email, password);
         if (result.error) {
-          setGeneralError(result.error.message);
-          showToast({ message: result.error.message, variant: 'error' });
+          const isNetwork = isNetworkOrOfflineError(result.error);
+          const safeMsg = getSafeAuthErrorMessage('sign-up', result.error);
+          setGeneralError(safeMsg);
+          if (isNetwork) {
+            showToast({ message: safeMsg, variant: 'error' });
+          }
         } else {
           if (result.data?.requiresEmailConfirmation) {
             setSuccessMessage(
@@ -141,8 +154,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
       } else if (mode === 'forgot-password') {
         const result = await resetPassword(email);
         if (result.error) {
-          setGeneralError(result.error.message);
-          showToast({ message: result.error.message, variant: 'error' });
+          const isNetwork = isNetworkOrOfflineError(result.error);
+          const safeMsg = getSafeAuthErrorMessage('forgot-password', result.error);
+          setGeneralError(safeMsg);
+          if (isNetwork) {
+            showToast({ message: safeMsg, variant: 'error' });
+          }
         } else {
           setSuccessMessage(
             'Password reset instructions have been sent to your email address.'
@@ -154,9 +171,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
         }
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setGeneralError(message);
-      showToast({ message, variant: 'error' });
+      const isNetwork = isNetworkOrOfflineError(err);
+      const safeMsg = getSafeAuthErrorMessage(mode, err);
+      setGeneralError(safeMsg);
+      if (isNetwork) {
+        showToast({ message: safeMsg, variant: 'error' });
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -1,5 +1,6 @@
 import { DbLike, ProfileRow } from '../types';
 import { RepositoryResult, ServerProfileInput } from './types';
+import { emitTableChange } from '../events';
 
 /**
  * Profile repository.
@@ -64,6 +65,7 @@ export async function upsertProfileFromServer(
       return { ok: false, error: 'Failed to retrieve cached profile after upsert' };
     }
 
+    emitTableChange('profiles');
     return { ok: true, value: row };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);

@@ -1,4 +1,5 @@
 import { DbLike, BudgetRow, CategoryRow } from '../types';
+import { emitTableChange } from '../events';
 import {
   CreateBudgetInput,
   UpdateBudgetInput,
@@ -121,6 +122,7 @@ export async function createBudget(
       return { ok: false, error: 'Failed to create budget' };
     }
 
+    emitTableChange(['budgets', 'outbox']);
     return { ok: true, value: createdBudget };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -291,6 +293,7 @@ export async function softDeleteBudget(
       return { ok: false, error: 'Failed to delete budget' };
     }
 
+    emitTableChange(['budgets', 'outbox']);
     return { ok: true, value: resultRow };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);

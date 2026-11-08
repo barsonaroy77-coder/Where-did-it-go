@@ -110,6 +110,109 @@ function formatAuthError(error: unknown): AuthErrorDetails {
 }
 
 /**
+ * Detects whether an authentication error is due to a network connection or offline state.
+ */
+export function isNetworkOrOfflineError(error: unknown): boolean {
+  if (!error) return false;
+  if (typeof error === 'string') {
+    const msg = error.toLowerCase();
+    return (
+      msg.includes('network') ||
+      msg.includes('fetch') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('offline') ||
+      msg.includes('timeout') ||
+      msg.includes('timed out') ||
+      msg.includes('connection refused')
+    );
+  }
+  if (typeof error === 'object' && error !== null) {
+    const err = error as { message?: string; name?: string; status?: number; code?: string };
+    if (err.name === 'AuthRetryableFetchError' || err.code === 'offline') {
+      return true;
+    }
+    const msg = (err.message || '').toLowerCase();
+    if (
+      msg.includes('network') ||
+      msg.includes('fetch') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('offline') ||
+      msg.includes('timeout') ||
+      msg.includes('timed out') ||
+      msg.includes('network request failed') ||
+      msg.includes('connection refused')
+    ) {
+      return true;
+    }
+    if (err.status === 0 || (typeof err.status === 'number' && err.status >= 500 && err.status < 600)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Maps authentication errors to safe, user-friendly messages conforming to security rules:
+ * - Failed sign-in: ONE generic message ("Wrong email or password. Please try again.")
+ * - Create account: Real, safe messages (weak password, already registered, etc.)
+ * - Forgot password: Safe messages for reset requests
+ */
+export function getSafeAuthErrorMessage(
+  mode: 'sign-in' | 'sign-up' | 'forgot-password',
+  error: unknown
+): string {
+  if (!error) {
+    return 'An unexpected error occurred. Please try again.';
+  }
+
+  if (isNetworkOrOfflineError(error)) {
+    return 'Unable to connect to the authentication server. Please check your internet connection.';
+  }
+
+  // Exact rule for failed sign-in: ONE generic message, never saying which part was wrong!
+  if (mode === 'sign-in') {
+    return 'Wrong email or password. Please try again.';
+  }
+
+  let raw = '';
+  if (typeof error === 'string') {
+    raw = error.toLowerCase();
+  } else if (typeof error === 'object' && error !== null) {
+    const err = error as { message?: string; code?: string };
+    raw = `${err.message || ''} ${err.code || ''}`.toLowerCase();
+  }
+
+  if (mode === 'sign-up') {
+    if (
+      raw.includes('password') &&
+      (raw.includes('least') || raw.includes('short') || raw.includes('weak') || raw.includes('characters'))
+    ) {
+      return 'Password must be at least 6 characters.';
+    }
+    if (
+      raw.includes('already registered') ||
+      raw.includes('already exists') ||
+      raw.includes('user_already_exists')
+    ) {
+      return 'An account with this email already exists.';
+    }
+    if (raw.includes('valid email') || raw.includes('invalid email') || raw.includes('email address')) {
+      return 'Please enter a valid email address.';
+    }
+    return 'Unable to create account. Please check your details and try again.';
+  }
+
+  if (mode === 'forgot-password') {
+    if (raw.includes('valid email') || raw.includes('invalid email') || raw.includes('email address')) {
+      return 'Please enter a valid email address.';
+    }
+    return 'Unable to send reset instructions. Please try again.';
+  }
+
+  return 'An error occurred. Please try again.';
+}
+
+/**
  * Sign in with email and password.
  */
 export async function signInWithEmail(
@@ -242,7 +345,8 @@ export async function signOut(): Promise<AuthResult<null>> {
  * Send password reset instructions to the given email.
  */
 export async function sendPasswordResetEmail(
-  email: string
+  email: string,
+  redirectTo?: string
 ): Promise<AuthResult<null>> {
   if (!isSupabaseConfigured) {
     return {
@@ -259,7 +363,8 @@ export async function sendPasswordResetEmail(
   }
 
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    const options = redirectTo ? { redirectTo } : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), options);
     if (error) {
       return { data: null, error: formatAuthError(error) };
     }

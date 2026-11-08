@@ -1,4 +1,5 @@
 import { DbLike, CategoryRow } from '../types';
+import { emitTableChange } from '../events';
 import {
   CreateCategoryInput,
   UpdateCategoryInput,
@@ -118,6 +119,7 @@ export async function createCategory(
       return { ok: false, error: 'Failed to create category' };
     }
 
+    emitTableChange(['categories', 'outbox']);
     return { ok: true, value: createdCategory };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -213,6 +215,7 @@ export async function updateCategory(
       return { ok: false, error: 'Failed to update category' };
     }
 
+    emitTableChange(['categories', 'outbox']);
     return { ok: true, value: updatedCategory };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -315,6 +318,7 @@ export async function deleteCategory(
       return { ok: false, error: 'Failed to process category deletion' };
     }
 
+    emitTableChange(['categories', 'outbox']);
     return { ok: true, value: result };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);

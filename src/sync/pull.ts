@@ -1,5 +1,6 @@
 import { DbLike } from '@/db/types';
 import { SyncRemote } from './remote';
+import { emitTableChange } from '@/db/events';
 
 export interface PullSummary {
   pulled: number;
@@ -240,6 +241,8 @@ export async function pullChanges(
           [table, newCursor, nowIso]
         );
       });
+
+      emitTableChange(table);
 
       requestCursor = highestSeqInPage;
 

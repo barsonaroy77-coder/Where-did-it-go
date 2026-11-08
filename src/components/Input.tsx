@@ -28,6 +28,8 @@ export interface InputProps extends TextInputProps {
   labelStyle?: StyleProp<TextStyle>;
   errorStyle?: StyleProp<TextStyle>;
   hintStyle?: StyleProp<TextStyle>;
+  labelRight?: React.ReactNode;
+  rightAccessory?: React.ReactNode;
 }
 
 export const Input = forwardRef<React.ComponentRef<typeof TextInput>, InputProps>(
@@ -41,6 +43,8 @@ export const Input = forwardRef<React.ComponentRef<typeof TextInput>, InputProps
       labelStyle,
       errorStyle,
       hintStyle,
+      labelRight,
+      rightAccessory,
       accessibilityLabel,
       onFocus,
       onBlur,
@@ -66,32 +70,68 @@ export const Input = forwardRef<React.ComponentRef<typeof TextInput>, InputProps
 
     return (
       <View style={[styles.container, containerStyle]}>
-        {label ? (
-          <Text style={[styles.label, labelStyle]}>
-            {label}
-          </Text>
+        {label || labelRight ? (
+          <View style={styles.labelRow}>
+            {label ? (
+              <Text style={[styles.label, labelStyle]}>
+                {label}
+              </Text>
+            ) : <View />}
+            {labelRight}
+          </View>
         ) : null}
 
-        <TextInput
-          ref={ref}
-          editable={editable}
-          accessibilityLabel={resolvedAccessibilityLabel}
-          accessibilityState={{
-            disabled: !editable,
-          }}
-          aria-invalid={hasError}
-          placeholderTextColor={colors.textMuted}
-          selectionColor={colors.text}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          style={[
-            styles.input,
-            hasError ? styles.inputError : isFocused ? styles.inputFocused : null,
-            !editable && styles.inputDisabled,
-            inputStyle,
-          ]}
-          {...textInputProps}
-        />
+        {rightAccessory ? (
+          <View
+            style={[
+              styles.inputWrapper,
+              hasError ? styles.inputError : isFocused ? styles.inputFocused : null,
+              !editable && styles.inputDisabled,
+            ]}
+          >
+            <TextInput
+              ref={ref}
+              editable={editable}
+              accessibilityLabel={resolvedAccessibilityLabel}
+              accessibilityState={{
+                disabled: !editable,
+              }}
+              aria-invalid={hasError}
+              placeholderTextColor={colors.textMuted}
+              selectionColor={colors.text}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              style={[
+                styles.inputWithAccessory,
+                !editable && styles.inputDisabled,
+                inputStyle,
+              ]}
+              {...textInputProps}
+            />
+            <View style={styles.rightAccessory}>{rightAccessory}</View>
+          </View>
+        ) : (
+          <TextInput
+            ref={ref}
+            editable={editable}
+            accessibilityLabel={resolvedAccessibilityLabel}
+            accessibilityState={{
+              disabled: !editable,
+            }}
+            aria-invalid={hasError}
+            placeholderTextColor={colors.textMuted}
+            selectionColor={colors.text}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            style={[
+              styles.input,
+              hasError ? styles.inputError : isFocused ? styles.inputFocused : null,
+              !editable && styles.inputDisabled,
+              inputStyle,
+            ]}
+            {...textInputProps}
+          />
+        )}
 
         {hasError ? (
           <Text
@@ -116,12 +156,17 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: spacing.md,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
   label: {
     fontFamily: fonts.bold,
     fontSize: fontSizes.base,
     lineHeight: lineHeights.base,
     color: colors.text,
-    marginBottom: spacing.xs,
   },
   input: {
     backgroundColor: colors.surface,
@@ -134,6 +179,28 @@ const styles = StyleSheet.create({
     color: colors.text,
     paddingVertical: spacing[3],
     paddingHorizontal: spacing.md,
+  },
+  inputWrapper: {
+    backgroundColor: colors.surface,
+    borderWidth: borderWidths.thick,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputWithAccessory: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: fontSizes.lg,
+    lineHeight: lineHeights.lg,
+    color: colors.text,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing.md,
+  },
+  rightAccessory: {
+    paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   inputFocused: {
     borderColor: colors.border,
